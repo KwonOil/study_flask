@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block pagetitle %}기본 웹사이트{% endblock pagetitle %}</title>
+</head>
+<body>
+    <header>
+        <h1>웹사이트 방문을 환영합니다!</h1>
+    </header>
+    {% block maincontent %}
+        <!-- 자식 템플릿에서 채움 -->
+    {% endblock maincontent %}
+
+    <footer>
+        <p>Copyright &copy; my website</p>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Message Example</title>
+</head>
+<body>
+    {% from "macros.html" import display_message %}
+    <!-- 매크로 호출 -->
+    {{ display_message("Hello, World!") }}
+    {{ display_message("Goodbye, World!") }}
+</body>
+</html>
