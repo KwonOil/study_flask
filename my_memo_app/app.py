@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, abort
+from flask import Flask, render_template, request, jsonify, abort, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 
@@ -35,6 +35,7 @@ class User(UserMixin, db.Model):
 # Memo 테이블 정의
 class Memo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id')) # 사용자 참조 추가
     title = db.Column(db.String(100), nullable=False)
     content = db.Column(db.Text, nullable=False)
 
@@ -46,6 +47,7 @@ class Memo(db.Model):
 def home():
     return render_template('home.html')
 
+# 상세 페이지
 @app.route('/about')
 def about():
     return 'this is about page'
@@ -56,11 +58,12 @@ with app.app_context():
 
 # 메모 생성
 @app.route('/memos/create', methods=['POST'])
+@login_required
 def create_memo():
     title = request.json['title']
     content = request.json['content']
 
-    new_memo = Memo(title=title, content=content)
+    new_memo = Memo(user_id = current_user.id, title=title, content=content)
     db.session.add(new_memo)
     db.session.commit()
 
@@ -68,14 +71,16 @@ def create_memo():
 
 # 메모 조회
 @app.route('/memos', methods=['GET'])
-def list_momos():
-    memos = Memo.query.all()
-    return jsonify([{'id': memo.id, 'title': memo.title, 'content': memo.content} for memo in memos]), 200
+@login_required
+def list_memos():
+    memos = Memo.query.filter_by(user_id=current_user.id).all() # 현재 로그인한 사용자의 메모만 조회
+    return render_template('memos.html', memos=memos,username=current_user.username) # 사용자별 메모를 표시하는 템플릿 렌더링
 
 # 메모 업데이트
 @app.route('/memos/update/<int:id>',methods=['PUT'])
+@login_required
 def update_memo(id):
-    memo = Memo.query.filter_by(id=id).first()
+    memo = Memo.query.filter_by(id=id, user_id=current_user.id).first()
     if memo:
         memo.title = request.json['title']
         memo.content = request.json['content']
@@ -86,11 +91,52 @@ def update_memo(id):
 
 # 메모 삭제
 @app.route('/memos/delete/<int:id>',methods=['DELETE'])
+@login_required
 def delete_memo(id):
-    memo = Memo.query.filter_by(id=id).first()
+    memo = Memo.query.filter_by(id=id,user_id=current_user.id).first()
     if memo:
         db.session.delete(memo)
         db.session.commit()
         return jsonify({'message': 'Memo deleted successfully'}), 200
     else:
         abort(404,description="Memo not found")
+
+# 로그인
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+# 회원가입 라우트
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        username = request.form['username']
+        email = request.form['email']
+        password = request.form['password']
+
+        user = User(username=username, email=email)
+        user.set_password(password)
+        
+        db.session.add(user)
+        db.session.commit()
+        
+        return jsonify({'message': 'Signup successful'}), 201
+    return render_template('signup.html')
+
+# 로그인 라우트
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        user = User.query.filter_by(username=request.form['username']).first()
+        if user and user.check_password(request.form['password']):
+            login_user(user)
+            return jsonify({'message': 'Login successful'}), 200
+        return abort(401, description={'Invalid username or password'})
+    return render_template('login.html')
+
+# 로그아웃 라우트
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return jsonify({'message': 'Logout successful'}), 200
